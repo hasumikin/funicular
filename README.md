@@ -1,43 +1,185 @@
 # Funicular
 
-TODO: Delete this and the text below, and describe your gem
+> 🎵Funicu-lì, Funicu-là!🚊🚊🚊
+>
+> 🎵Funicu-lì, Funicu-là!🚞🚞🚞
 
-Welcome to your new gem! In this directory, you'll find the files you need to be able to package up your Ruby library into a gem. Put your Ruby code in the file `lib/funicular`. To experiment with that code, run `bin/console` for an interactive prompt.
+Funicular is a Rails plugin that enables you to write client-side UI components in Ruby, compiled to mruby bytecode (.mrb) for efficient browser execution.
+
+## Features
+
+- Write client-side code in Ruby instead of JavaScript
+- Automatic compilation of Ruby files to mruby bytecode (.mrb)
+- Development mode with debug symbols (-g option)
+- Production mode with optimized bytecode (no debug symbols)
+- Auto-recompilation in development when source files change
+- Seamless Rails integration
+
+## Prerequisites
+
+Funicular requires the `picorbc` mruby compiler to be available in your PATH.
+
+Installation instructions:
+- Install picoruby: https://github.com/picoruby/picoruby
+- Or add picorbc to your PATH
 
 ## Installation
 
-TODO: Replace `UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG` with your gem name right after releasing it to RubyGems.org. Please do not do it earlier due to security reasons. Alternatively, replace this section with instructions to install your gem from git if you don't plan to release to RubyGems.org.
+Add this line to your application's Gemfile:
 
-Install the gem and add to the application's Gemfile by executing:
-
-```bash
-bundle add UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+```ruby
+gem "funicular"
 ```
 
-If bundler is not being used to manage dependencies, install the gem by executing:
+Then execute:
 
 ```bash
-gem install UPDATE_WITH_YOUR_GEM_NAME_IMMEDIATELY_AFTER_RELEASE_TO_RUBYGEMS_ORG
+bundle install
 ```
 
 ## Usage
 
-TODO: Write usage instructions here
+### Directory Structure
+
+Place your Funicular application files in the following structure:
+
+```
+app/funicular/
+  models/              # UI models
+    user.rb
+    session.rb
+  components/          # UI components
+    login_component.rb
+    chat_component.rb
+  initializer.rb       # Application initialization (optional)
+```
+
+The `initializer.rb` file (or any file ending with `_initializer.rb`) is loaded last, after all models and components. Use it for application setup code like routing configuration.
+
+### Compilation
+
+#### Development Mode
+
+In development mode, Funicular automatically recompiles your Ruby files when they change. The compiled bytecode includes debug symbols (-g option).
+
+To manually compile:
+
+```bash
+bundle exec rake funicular:compile
+```
+
+Output:
+- File: `app/assets/builds/application.mrb`
+- Debug mode: enabled
+- Size: ~19KB (with debug symbols)
+
+The compiled file is placed in `app/assets/builds/` so that Rails asset pipeline (Propshaft) can process it and serve it from `public/assets/` with proper cache busting.
+
+#### Production Mode
+
+In production mode, compile without debug symbols for smaller file size:
+
+```bash
+RAILS_ENV=production bundle exec rake funicular:compile
+```
+
+Output:
+- File: `app/assets/builds/application.mrb`
+- Debug mode: disabled
+- Size: ~16KB (optimized)
+
+The compilation task is automatically run before `assets:precompile` in production deployments.
+
+### Loading in Views
+
+Include the compiled bytecode in your view using the `asset_path` helper. If you have an `initializer.rb` file, it will execute automatically when the mrb file loads:
+
+```erb
+<div id="app"></div>
+
+<script type="application/x-mrb" src="<%= asset_path('application.mrb') %>"></script>
+```
+
+The `asset_path` helper ensures that:
+- In development: The file is served from `app/assets/builds/` via Propshaft
+- In production: The file is served from `public/assets/` with a digest hash for cache busting (e.g., `application-abc123.mrb`)
+
+Example `app/funicular/initializer.rb`:
+
+```ruby
+puts "Funicular Chat App initializing..."
+
+# Load all model schemas before starting the app
+Funicular.load_schemas({ User => "user", Session => "session", Channel => "channel" }) do
+  # Start the application after all schemas are loaded
+  Funicular.start(container: 'app') do |router|
+    router.add_route('/login', LoginComponent)
+    router.add_route('/chat', ChatComponent)
+    router.set_default('/login')
+  end
+end
+```
+
+### File Concatenation Order
+
+Funicular concatenates files in the following order:
+
+1. `app/funicular/models/**/*.rb` (alphabetically)
+2. `app/funicular/components/**/*.rb` (alphabetically)
+3. `app/funicular/initializer.rb` and `app/funicular/*_initializer.rb`
+
+This ensures that:
+- Model classes are defined before components that depend on them
+- Components are defined before initialization code that uses them
+
+## Rails Asset Pipeline Integration
+
+Funicular integrates with Rails' asset pipeline (Propshaft) following Rails best practices:
+
+### Directory Structure
+
+```
+app/
+  funicular/                    # Source files (version controlled)
+    models/
+    components/
+    initializer.rb
+  assets/
+    builds/                     # Compiled output (gitignored)
+      application.mrb           # Generated by funicular:compile
+      .keep                     # Keep directory in git
+```
+
+### Development vs Production
+
+**Development:**
+- Files in `app/assets/builds/` are served directly by Propshaft
+- Middleware automatically recompiles when source files change
+- Debug symbols included for better error messages
+
+**Production:**
+- `rake assets:precompile` runs `funicular:compile` first
+- Propshaft copies files to `public/assets/` with digest hashes
+- Example: `application.mrb` -> `application-abc123def456.mrb`
+- Debug symbols excluded for smaller file size
+
+### Cache Busting
+
+Using `asset_path('application.mrb')` in views ensures:
+- Correct path resolution in all environments
+- Automatic cache busting when files change
+- Standard Rails asset handling
 
 ## Development
 
-After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests. You can also run `bin/console` for an interactive prompt that will allow you to experiment.
+After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests.
 
-To install this gem onto your local machine, run `bundle exec rake install`. To release a new version, update the version number in `version.rb`, and then run `bundle exec rake release`, which will create a git tag for the version, push git commits and the created tag, and push the `.gem` file to [rubygems.org](https://rubygems.org).
+To install this gem onto your local machine, run `bundle exec rake install`.
 
 ## Contributing
 
-Bug reports and pull requests are welcome on GitHub at https://github.com/[USERNAME]/funicular. This project is intended to be a safe, welcoming space for collaboration, and contributors are expected to adhere to the [code of conduct](https://github.com/[USERNAME]/funicular/blob/master/CODE_OF_CONDUCT.md).
+Bug reports and pull requests are welcome on GitHub at https://github.com/hasumikin/funicular.
 
 ## License
 
-The gem is available as open source under the terms of the [MIT License](https://opensource.org/licenses/MIT).
-
-## Code of Conduct
-
-Everyone interacting in the Funicular project's codebases, issue trackers, chat rooms and mailing lists is expected to follow the [code of conduct](https://github.com/[USERNAME]/funicular/blob/master/CODE_OF_CONDUCT.md).
+MIT
