@@ -14,6 +14,9 @@ Funicular is a Rails plugin that enables you to write client-side UI components 
 - Production mode with optimized bytecode (no debug symbols)
 - Auto-recompilation in development when source files change
 - Seamless Rails integration
+- Rails-style routing with `link_to` helper and URL path helpers
+- RESTful HTTP method support (GET, POST, PUT, PATCH, DELETE)
+- Built-in CSRF protection for non-GET requests
 
 ## Prerequisites
 
@@ -113,8 +116,10 @@ puts "Funicular Chat App initializing..."
 Funicular.load_schemas({ User => "user", Session => "session", Channel => "channel" }) do
   # Start the application after all schemas are loaded
   Funicular.start(container: 'app') do |router|
-    router.add_route('/login', LoginComponent)
-    router.add_route('/chat', ChatComponent)
+    router.get('/login', to: LoginComponent, as: 'login')
+    router.get('/chat/:channel_id', to: ChatComponent, as: 'chat_channel')
+    router.get('/settings', to: SettingsComponent, as: 'settings')
+    router.delete('/logout', to: LogoutComponent, as: 'logout')
     router.set_default('/login')
   end
 end
@@ -131,6 +136,132 @@ Funicular concatenates files in the following order:
 This ensures that:
 - Model classes are defined before components that depend on them
 - Components are defined before initialization code that uses them
+
+### Routing
+
+Funicular provides Rails-style routing with automatic URL helper generation and RESTful HTTP method support.
+
+#### Defining Routes
+
+Use Rails-style DSL in your `initializer.rb`:
+
+```ruby
+Funicular.start(container: 'app') do |router|
+  # GET routes with URL helpers
+  router.get('/login', to: LoginComponent, as: 'login')
+  router.get('/users/:id', to: UserComponent, as: 'user')
+  router.get('/users/:id/edit', to: EditUserComponent, as: 'edit_user')
+
+  # RESTful routes
+  router.post('/users', to: CreateUserComponent, as: 'users')
+  router.patch('/users/:id', to: UpdateUserComponent, as: 'update_user')
+  router.delete('/users/:id', to: DeleteUserComponent, as: 'delete_user')
+
+  # Set default route
+  router.set_default('/login')
+end
+```
+
+The `as` option automatically generates URL helper methods (e.g., `login_path`, `user_path`).
+
+#### Using URL Helpers
+
+URL helpers are automatically available in all components:
+
+```ruby
+class UserListComponent < Funicular::Component
+  def render
+    div do
+      # Static path
+      link_to login_path do
+        span { "Login" }
+      end
+
+      # Path with parameter from state/props
+      state.users.each do |user|
+        link_to user_path(user.id) do
+          span { user.name }
+        end
+      end
+
+      # Or pass model object with id method
+      link_to edit_user_path(state.current_user) do
+        span { "Edit Profile" }
+      end
+    end
+  end
+end
+```
+
+#### Using link_to Helper
+
+The `link_to` helper creates navigation links with automatic routing:
+
+```ruby
+# GET navigation (uses History API)
+link_to settings_path, class: "button" do
+  span { "Settings" }
+end
+
+# Path with dynamic data
+link_to chat_channel_path(props[:channel]) do
+  div(class: "channel-name") { "# #{props[:channel].name}" }
+  div(class: "channel-desc") { props[:channel].description }
+end
+
+# RESTful actions (uses Fetch API)
+link_to user_path(state.user), method: :delete, class: "danger" do
+  span { "Delete Account" }
+end
+
+# Supported HTTP methods: :get, :post, :put, :patch, :delete
+```
+
+#### CSRF Protection
+
+Non-GET requests automatically include CSRF tokens from Rails meta tags:
+
+```erb
+<!-- In your Rails layout -->
+<head>
+  <%= csrf_meta_tags %>
+</head>
+```
+
+Funicular automatically reads the CSRF token and includes it in `X-CSRF-Token` header for POST, PUT, PATCH, and DELETE requests.
+
+#### Viewing Routes
+
+Display all defined routes with the Rake task:
+
+```bash
+rake funicular:routes
+```
+
+Output example:
+
+```
+Method   Path                Component         Helper
+----------------------------------------------------------
+GET      /login              LoginComponent    login_path
+GET      /chat/:channel_id   ChatComponent     chat_channel_path
+GET      /settings           SettingsComponent settings_path
+DELETE   /logout             LogoutComponent   logout_path
+
+Total: 4 routes
+```
+
+#### Backward Compatibility
+
+The old `add_route` method is still supported:
+
+```ruby
+# Old style (still works)
+router.add_route('/login', LoginComponent)
+
+# With URL helper
+router.add_route('/login', LoginComponent, as: 'login')
+```
 
 ## Rails Asset Pipeline Integration
 

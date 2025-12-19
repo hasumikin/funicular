@@ -1,0 +1,32 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require "bundler/setup"
+require "funicular"
+
+command = ARGV[0]
+
+case command
+when "routes"
+  require_relative "../lib/funicular/commands/routes"
+  Funicular::Commands::Routes.new.execute
+when "version", "-v", "--version"
+  puts Funicular::VERSION
+when "help", "-h", "--help", nil
+  puts <<~HELP
+    Funicular CLI
+
+    Usage:
+      funicular routes         Show all Funicular routes
+      funicular version        Show Funicular version
+      funicular help           Show this help message
+
+    Options:
+      -h, --help              Show help
+      -v, --version           Show version
+  HELP
+else
+  puts "Unknown command: #{command}"
+  puts "Run 'funicular help' for usage"
+  exit 1
+end

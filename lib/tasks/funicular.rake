@@ -31,6 +31,20 @@ namespace :funicular do
       exit 1
     end
   end
+
+  desc "Show all Funicular routes"
+  task routes: :environment do
+    require "funicular/commands/routes"
+
+    begin
+      Funicular::Commands::Routes.new.execute
+    rescue => e
+      puts "ERROR: Failed to display routes"
+      puts e.message
+      puts e.backtrace.join("\n")
+      exit 1
+    end
+  end
 end
 
 # Hook into assets:precompile for production deployment
