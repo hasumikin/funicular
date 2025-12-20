@@ -29,7 +29,8 @@ module Funicular
           compiler = Compiler.new(
             source_dir: @source_dir,
             output_file: @output_file,
-            debug_mode: true
+            debug_mode: true,
+            logger: Rails.logger
           )
           compiler.compile
           @last_mtime = current_mtime

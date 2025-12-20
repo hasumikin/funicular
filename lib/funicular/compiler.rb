@@ -4,12 +4,13 @@ module Funicular
   class Compiler
     class PicorbcNotFoundError < StandardError; end
 
-    attr_reader :source_dir, :output_file, :debug_mode
+    attr_reader :source_dir, :output_file, :debug_mode, :logger
 
-    def initialize(source_dir:, output_file:, debug_mode: false)
+    def initialize(source_dir:, output_file:, debug_mode: false, logger: nil)
       @source_dir = source_dir
       @output_file = output_file
       @debug_mode = debug_mode
+      @logger = logger
     end
 
     def compile
@@ -56,9 +57,18 @@ module Funicular
           f.puts File.read(file)
           f.puts
         end
+        f.puts "ENV['FUNICULAR_ENV'] = '#{Rails.env}'"
       end
 
       @temp_source_file = temp_file
+    end
+
+    def log(message)
+      if logger
+        logger.info(message)
+      else
+        puts message
+      end
     end
 
     def compile_to_mrb
@@ -68,11 +78,11 @@ module Funicular
       compile_options = debug_mode ? "-g" : ""
       command = "picorbc #{compile_options} -o #{output_file} #{@temp_source_file}"
 
-      puts "Compiling Funicular application..."
-      puts "  Source: #{source_dir}"
-      puts "  Output: #{output_file}"
-      puts "  Debug mode: #{debug_mode}"
-      puts "  Temp source: #{@temp_source_file}"
+      log "Compiling Funicular application..."
+      log "  Source: #{source_dir}"
+      log "  Output: #{output_file}"
+      log "  Debug mode: #{debug_mode}"
+      log "  Temp source: #{@temp_source_file}"
 
       result = system(command)
 
@@ -80,7 +90,7 @@ module Funicular
         raise "Failed to compile with picorbc. Command: #{command}"
       end
 
-      puts "Successfully compiled to #{output_file}"
+      log "Successfully compiled to #{output_file}"
     ensure
       # Keep temp file for debugging - set FUNICULAR_KEEP_TEMP=1 to inspect temp file
       unless ENV['FUNICULAR_KEEP_TEMP']
