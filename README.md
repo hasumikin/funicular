@@ -301,6 +301,59 @@ Using `asset_path('application.mrb')` in views ensures:
 - Automatic cache busting when files change
 - Standard Rails asset handling
 
+## Development Tools
+
+### Component Debug Highlighter
+
+Funicular provides a debug tool that visually highlights components with `data-component` attributes in development mode.
+
+#### Installation
+
+Run the install task to copy debug assets to your Rails app:
+
+```bash
+bundle exec rake funicular:install
+```
+
+This creates:
+- `app/assets/javascripts/funicular_debug.js`
+- `app/assets/stylesheets/funicular_debug.css`
+
+#### Integration with Sprockets
+
+Add to `app/assets/config/manifest.js`:
+
+```javascript
+//= link_directory ../javascripts .js
+//= link_directory ../stylesheets .css
+```
+
+Then update your layout to load the debug assets in development only:
+
+```erb
+<head>
+  <% if Rails.env.development? %>
+    <%= stylesheet_link_tag "funicular_debug", "data-turbo-track": "reload" %>
+    <%= javascript_include_tag "funicular_debug", "data-turbo-track": "reload" %>
+  <% end %>
+</head>
+```
+
+#### Features
+
+In development mode, components automatically get `data-component` attributes with their class name. The debug tool:
+
+- Highlights components with a green/yellow/pink/cyan outline
+  ```ruby
+  # in app/funicular/initializer.rb
+  Funicular.debug_color = "pink"  # Options: "green", "yellow", "pink", "cyan", or nil to disable
+  ```
+- Shows a triangle indicator in the bottom-right corner
+- Displays component name and id value (if exists) on hover
+- Does not distort layout (uses `outline` instead of `border`)
+
+This helps developers quickly identify which component class renders each part of the UI.
+
 ## Development
 
 After checking out the repo, run `bin/setup` to install dependencies. Then, run `rake test` to run the tests.

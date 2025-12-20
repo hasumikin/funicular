@@ -45,6 +45,37 @@ namespace :funicular do
       exit 1
     end
   end
+
+  desc "Install Funicular debug assets for development"
+  task :install do
+    require "fileutils"
+
+    javascripts_dir = Rails.root.join("app", "assets", "javascripts")
+    stylesheets_dir = Rails.root.join("app", "assets", "stylesheets")
+
+    FileUtils.mkdir_p(javascripts_dir)
+    FileUtils.mkdir_p(stylesheets_dir)
+
+    source_js = File.expand_path("../funicular/assets/funicular_debug.js", __dir__)
+    source_css = File.expand_path("../funicular/assets/funicular_debug.css", __dir__)
+
+    dest_js = javascripts_dir.join("funicular_debug.js")
+    dest_css = stylesheets_dir.join("funicular_debug.css")
+
+    FileUtils.cp(source_js, dest_js)
+    FileUtils.cp(source_css, dest_css)
+
+    puts "✅ Funicular debug assets installed!"
+    puts "   - #{dest_js}"
+    puts "   - #{dest_css}"
+    puts ""
+    puts "📝 Next steps:"
+    puts "   Add to your layout (development only):"
+    puts '   <% if Rails.env.development? %>'
+    puts '     <%= javascript_include_tag "funicular_debug", "data-turbo-track": "reload" %>'
+    puts '     <%= stylesheet_link_tag "funicular_debug", "data-turbo-track": "reload" %>'
+    puts '   <% end %>'
+  end
 end
 
 # Hook into assets:precompile for production deployment
