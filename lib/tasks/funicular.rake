@@ -52,22 +52,28 @@ namespace :funicular do
 
     javascripts_dir = Rails.root.join("app", "assets", "javascripts")
     stylesheets_dir = Rails.root.join("app", "assets", "stylesheets")
+    initializers_dir = Rails.root.join("config", "initializers")
 
     FileUtils.mkdir_p(javascripts_dir)
     FileUtils.mkdir_p(stylesheets_dir)
+    FileUtils.mkdir_p(initializers_dir)
 
     source_js = File.expand_path("../funicular/assets/funicular_debug.js", __dir__)
     source_css = File.expand_path("../funicular/assets/funicular_debug.css", __dir__)
+    source_initializer = File.expand_path("../funicular/assets/funicular.rb", __dir__)
 
     dest_js = javascripts_dir.join("funicular_debug.js")
     dest_css = stylesheets_dir.join("funicular_debug.css")
+    dest_initializer = initializers_dir.join("funicular.rb")
 
     FileUtils.cp(source_js, dest_js)
     FileUtils.cp(source_css, dest_css)
+    FileUtils.cp(source_initializer, dest_initializer)
 
     puts "✅ Funicular debug assets installed!"
     puts "   - #{dest_js}"
     puts "   - #{dest_css}"
+    puts "   - #{dest_initializer}"
     puts ""
     puts "📝 Next steps:"
     puts "   Add to your layout (development only):"
