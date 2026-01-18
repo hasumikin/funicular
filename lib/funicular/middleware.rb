@@ -5,7 +5,7 @@ module Funicular
     def initialize(app)
       @app = app
       @source_dir = Rails.root.join("app", "funicular")
-      @output_file = Rails.root.join("app", "assets", "builds", "application.mrb")
+      @output_file = Rails.root.join("app", "assets", "builds", "app.mrb")
       @last_mtime = nil
     end
 

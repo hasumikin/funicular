@@ -6,7 +6,7 @@ namespace :funicular do
     require "funicular/compiler"
 
     source_dir = Rails.root.join("app", "funicular")
-    output_file = Rails.root.join("app", "assets", "builds", "application.mrb")
+    output_file = Rails.root.join("app", "assets", "builds", "app.mrb")
     debug_mode = !Rails.env.production?
 
     unless Dir.exist?(source_dir)
