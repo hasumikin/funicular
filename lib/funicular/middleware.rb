@@ -2,11 +2,23 @@
 
 module Funicular
   class Middleware
+    class << self
+      attr_accessor :last_mtime, :compiling, :mutex
+
+      def reset!
+        @last_mtime = nil
+        @compiling = false
+        @mutex = Mutex.new
+      end
+    end
+
+    # Initialize class state
+    reset!
+
     def initialize(app)
       @app = app
       @source_dir = Rails.root.join("app", "funicular")
       @output_file = Rails.root.join("app", "assets", "builds", "app.mrb")
-      @last_mtime = nil
     end
 
     def call(env)
@@ -23,20 +35,32 @@ module Funicular
     def recompile_if_needed
       current_mtime = latest_source_mtime
 
-      if @last_mtime.nil? || current_mtime > @last_mtime
-        begin
-          Rails.logger.info "Funicular: Source files changed, recompiling..."
-          compiler = Compiler.new(
-            source_dir: @source_dir,
-            output_file: @output_file,
-            debug_mode: true,
-            logger: Rails.logger
-          )
-          compiler.compile
-          @last_mtime = current_mtime
-        rescue => e
-          Rails.logger.error "Funicular compilation failed: #{e.message}"
-        end
+      # Skip if already compiling or if no changes detected
+      return if self.class.compiling
+      return if self.class.last_mtime && current_mtime <= self.class.last_mtime
+
+      self.class.mutex.synchronize do
+        # Double-check inside the lock
+        return if self.class.compiling
+        return if self.class.last_mtime && current_mtime <= self.class.last_mtime
+
+        self.class.compiling = true
+      end
+
+      begin
+        Rails.logger.info "Funicular: Source files changed, recompiling..."
+        compiler = Compiler.new(
+          source_dir: @source_dir,
+          output_file: @output_file,
+          debug_mode: true,
+          logger: Rails.logger
+        )
+        compiler.compile
+        self.class.last_mtime = current_mtime
+      rescue => e
+        Rails.logger.error "Funicular compilation failed: #{e.message}"
+      ensure
+        self.class.compiling = false
       end
     end
 
