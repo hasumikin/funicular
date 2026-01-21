@@ -70,7 +70,7 @@ module Funicular
 
     def check_picorbc_version!
       version_output = `#{picorbc_command} --version 2>&1`.strip
-      actual_version = version_output.match(/(\d+\.\d+\.\d+)/)?.[1]
+      actual_version = version_output.match(/(\d+\.\d+\.\d+)/)[1]
 
       unless actual_version
         log "Warning: Could not detect picorbc version"

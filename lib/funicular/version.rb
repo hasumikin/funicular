@@ -2,5 +2,5 @@
 
 module Funicular
   VERSION = "0.1.1"
-  PICORBC_VERSION = "3.4.0"
+  PICORBC_VERSION = "3.4.1"
 end
