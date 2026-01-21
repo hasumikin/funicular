@@ -20,11 +20,22 @@ Funicular is a Rails plugin that enables you to write client-side UI components 
 
 ## Prerequisites
 
-Funicular requires the `picorbc` mruby compiler to be available in your PATH.
+Funicular requires the `picorbc` mruby compiler to compile Ruby code to .mrb format.
 
-Installation instructions:
-- Install picoruby: https://github.com/picoruby/picoruby
-- Or add picorbc to your PATH
+Add it as a project dependency using npm (the required version will be specified in error messages if not installed):
+
+```bash
+npm install --save-dev @picoruby/picorbc
+```
+
+If you don't have a `package.json` yet:
+
+```bash
+npm init -y
+npm install --save-dev @picoruby/picorbc
+```
+
+For more information: https://www.npmjs.com/package/@picoruby/picorbc
 
 ## Installation
 

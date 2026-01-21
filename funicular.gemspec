@@ -36,6 +36,20 @@ Gem::Specification.new do |spec|
   # Dependencies
   spec.add_dependency "rails", "~> 8.0"
 
+  # Post-install message
+  spec.post_install_message = <<~MSG
+
+    Thank you for installing Funicular!
+
+    IMPORTANT: Funicular requires picorbc compiler (version #{Funicular::PICORBC_VERSION})
+
+    Please add it to your project dependencies:
+      npm install --save-dev @picoruby/picorbc@#{Funicular::PICORBC_VERSION}
+
+    For more information: https://www.npmjs.com/package/@picoruby/picorbc
+
+  MSG
+
   # For more information and examples about making a new gem, check out our
   # guide at: https://bundler.io/guides/creating_gem.html
 end

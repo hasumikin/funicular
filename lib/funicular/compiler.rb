@@ -22,19 +22,70 @@ module Funicular
     private
 
     def check_picorbc_availability!
-      result = system("which picorbc > /dev/null 2>&1")
-      unless result
+      unless picorbc_command
         raise PicorbcNotFoundError, <<~ERROR
-          picorbc command not found in PATH.
+          picorbc command not found.
 
-          Funicular requires the picorbc mruby compiler to compile Ruby code to .mrb format.
-          Please ensure that picorbc is installed and available in your PATH.
+          Funicular requires the picorbc mruby compiler (version #{Funicular::PICORBC_VERSION}) to compile Ruby code to .mrb format.
 
-          Installation instructions:
-          - Install picoruby: https://github.com/picoruby/picoruby
-          - Or add picorbc to your PATH
+          Please add @picoruby/picorbc to your project dependencies:
+
+          1. Add to package.json:
+             npm install --save-dev @picoruby/picorbc@#{Funicular::PICORBC_VERSION}
+
+          2. Or if you don't have package.json yet:
+             npm init -y
+             npm install --save-dev @picoruby/picorbc@#{Funicular::PICORBC_VERSION}
+
+          For more information: https://www.npmjs.com/package/@picoruby/picorbc
         ERROR
       end
+
+      check_picorbc_version!
+    end
+
+    def picorbc_command
+      @picorbc_command ||= find_picorbc_command
+    end
+
+    def find_picorbc_command
+      # Try local node_modules first (project dependency - recommended)
+      local_picorbc = Rails.root.join("node_modules", ".bin", "picorbc")
+      return local_picorbc.to_s if File.executable?(local_picorbc)
+
+      # Check if global picorbc exists and warn
+      if system("which picorbc > /dev/null 2>&1")
+        warn_global_picorbc
+        return "picorbc"
+      end
+
+      # Not found
+      nil
+    end
+
+    def warn_global_picorbc
+      logger&.warn("Using global picorbc. Consider adding @picoruby/picorbc@#{Funicular::PICORBC_VERSION} to package.json for version consistency.")
+      puts "WARNING: Using global picorbc. Consider adding @picoruby/picorbc@#{Funicular::PICORBC_VERSION} to package.json for version consistency." if debug_mode
+    end
+
+    def check_picorbc_version!
+      version_output = `#{picorbc_command} --version 2>&1`.strip
+      actual_version = version_output.match(/(\d+\.\d+\.\d+)/)?.[1]
+
+      unless actual_version
+        log "Warning: Could not detect picorbc version"
+        return
+      end
+
+      if actual_version != Funicular::PICORBC_VERSION
+        warn_version_mismatch(actual_version)
+      end
+    end
+
+    def warn_version_mismatch(actual_version)
+      message = "picorbc version mismatch: expected #{Funicular::PICORBC_VERSION}, found #{actual_version}. Please install @picoruby/picorbc@#{Funicular::PICORBC_VERSION}"
+      logger&.warn(message)
+      puts "WARNING: #{message}" if debug_mode
     end
 
     def gather_source_files
