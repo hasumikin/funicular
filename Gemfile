@@ -5,5 +5,5 @@ gemspec
 gem "rake"
 
 group :development, :test do
-  gem "test-unit"
+  gem "minitest-reporters"
 end

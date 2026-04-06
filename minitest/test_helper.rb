@@ -2,5 +2,6 @@
 
 $LOAD_PATH.unshift File.expand_path("../lib", __dir__)
 require "funicular"
-
-require "test-unit"
+require "minitest/autorun"
+require "minitest/reporters"
+Minitest::Reporters.use!

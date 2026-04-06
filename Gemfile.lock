@@ -81,6 +81,7 @@ GEM
       securerandom (>= 0.3)
       tzinfo (~> 2.0, >= 2.0.5)
       uri (>= 0.13.1)
+    ansi (1.6.0)
     base64 (0.3.0)
     bigdecimal (4.0.1)
     builder (3.3.0)
@@ -113,9 +114,13 @@ GEM
       net-smtp
     marcel (1.1.0)
     mini_mime (1.1.5)
-    mini_portile2 (2.8.9)
     minitest (6.0.1)
       prism (~> 1.5)
+    minitest-reporters (1.8.0)
+      ansi
+      builder
+      minitest (>= 5.0, < 7)
+      ruby-progressbar
     net-imap (0.6.2)
       date
       net-protocol
@@ -126,12 +131,8 @@ GEM
     net-smtp (0.5.1)
       net-protocol
     nio4r (2.7.5)
-    nokogiri (1.19.0)
-      mini_portile2 (~> 2.8.2)
-      racc (~> 1.4)
     nokogiri (1.19.0-x86_64-linux-gnu)
       racc (~> 1.4)
-    power_assert (3.0.1)
     pp (0.6.3)
       prettyprint
     prettyprint (0.2.0)
@@ -185,10 +186,9 @@ GEM
       tsort
     reline (0.6.3)
       io-console (~> 0.5)
+    ruby-progressbar (1.13.0)
     securerandom (0.4.1)
     stringio (3.2.0)
-    test-unit (3.7.7)
-      power_assert
     thor (1.5.0)
     timeout (0.6.0)
     tsort (0.2.0)
@@ -203,13 +203,12 @@ GEM
     zeitwerk (2.7.4)
 
 PLATFORMS
-  ruby
   x86_64-linux
 
 DEPENDENCIES
   funicular!
+  minitest-reporters
   rake
-  test-unit
 
 BUNDLED WITH
   4.0.3
