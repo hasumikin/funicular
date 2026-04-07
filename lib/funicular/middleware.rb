@@ -57,11 +57,35 @@ module Funicular
         )
         compiler.compile
         self.class.last_mtime = current_mtime
+        invalidate_asset_pipeline_cache
       rescue => e
         Rails.logger.error "Funicular compilation failed: #{e.message}"
       ensure
         self.class.compiling = false
       end
+    end
+
+    # Force the asset pipeline to drop its cached fingerprint for app.mrb.
+    #
+    # Propshaft caches Asset instances (and memoizes #digest / #compiled_content)
+    # in LoadPath, and only refreshes them when its file watcher detects a change
+    # in a file whose extension is registered in Mime::EXTENSION_LOOKUP. The .mrb
+    # extension is not registered there, so when funicular rewrites app.mrb the
+    # Propshaft cache is never invalidated and asset_path('app.mrb') keeps
+    # returning the stale fingerprinted URL until the Rails process is restarted.
+    #
+    # We side-step that by invoking the cache sweeper directly after every
+    # successful recompile. This is a no-op if Propshaft is not in use.
+    def invalidate_asset_pipeline_cache
+      return unless Rails.application.respond_to?(:assets)
+
+      assets = Rails.application.assets
+      return unless assets.respond_to?(:load_path)
+
+      load_path = assets.load_path
+      return unless load_path.respond_to?(:cache_sweeper)
+
+      load_path.cache_sweeper.execute
     end
 
     def latest_source_mtime
