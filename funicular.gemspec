@@ -16,9 +16,9 @@ Gem::Specification.new do |spec|
 
   # spec.metadata["allowed_push_host"] = "TODO: Set to your gem server 'https://example.com'"
 
-  spec.metadata["homepage_uri"] = spec.homepage
-  # spec.metadata["source_code_uri"] = "TODO: Put your gem's public repo URL here."
-  # spec.metadata["changelog_uri"] = "TODO: Put your gem's CHANGELOG.md URL here."
+  spec.metadata["homepage_uri"] = "https://picoruby.org/funicular-getting-started"
+  spec.metadata["source_code_uri"] = spec.homepage
+  spec.metadata["changelog_uri"] = "https://github.com/picoruby/funicular/blob/master/CHANGELOG.md"
 
   # Specify which files should be added to the gem when it is released.
   # The `git ls-files -z` loads the files in the RubyGem that have been added into git.
@@ -53,14 +53,19 @@ Gem::Specification.new do |spec|
     Thank you for installing Funicular!
 
     Funicular bundles a WebAssembly build of picorbc, which compiles your
-    Ruby code to .mrb at request time (development) and at asset:precompile
-    time (production). Make sure Node.js is installed on machines that run
-    the compilation.
+    Ruby code to .mrb bytecode. Make sure Node.js is installed on machines
+    that run the compilation.
 
-    To install Funicular into a Rails app:
-      bin/rails funicular:install
+    Funicular works in two modes:
 
-    For more information: https://github.com/hasumikin/funicular
+      Standalone: include PicoRuby.wasm directly in any HTML page using the
+      bundled WASM artifacts. No server framework required.
+
+      Rails integration: use the Railtie, middleware, and view helpers for
+      seamless asset pipeline support.
+        bin/rails funicular:install
+
+    For more information: https://github.com/picoruby/funicular
 
   MSG
 
