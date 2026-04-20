@@ -3,6 +3,8 @@ module Funicular
     type patch_t = Array[untyped]
     type child_t = Element | Text | Component | String | Array[Element | Text | Component | String]
 
+    URL_ATTRIBUTES: Array[String]
+
     class VNode
       attr_reader type: Symbol
       attr_reader key: untyped

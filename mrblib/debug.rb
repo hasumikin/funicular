@@ -103,7 +103,7 @@ module Funicular
                 "state_keys" => state_keys,
                 "mounted" => mounted,
                 "children" => child_ids
-              }
+              } #: Hash[String, untyped]
               if is_error_boundary
                 entry["is_error_boundary"] = true
                 entry["has_error"] = has_error
@@ -131,7 +131,7 @@ module Funicular
         return "{}" unless component
 
         state = component.instance_variable_get(:@state) || {}
-        result = {}
+        result = {} #: Hash[String, String]
         state.each do |key, value|
           begin
             result[key.to_s] = value.inspect
@@ -147,7 +147,7 @@ module Funicular
         component = get_component(id)
         return "{}" unless component
 
-        result = {}
+        result = {} #: Hash[String, String]
         component.instance_variables.each do |var|
           next if var == :@state
           next if var.to_s.start_with?('@__debug')
