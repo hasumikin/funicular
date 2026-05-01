@@ -20,7 +20,9 @@ module Funicular
               result = new_element
             end
           when :props
-            update_props(element, patch[1])
+            # Props patches only make sense for Element nodes (text nodes have
+            # no attributes); narrow before delegating.
+            update_props(element, patch[1]) if element.is_a?(JS::Element)
           when :update_and_rebind
             instance, internal_patches, new_vdom = patch[1], patch[2], patch[3]
             old_dom_element = instance.dom_element
@@ -29,7 +31,7 @@ module Funicular
             new_dom_element = Patcher.new(@doc).apply(old_dom_element, internal_patches)
 
             # Update the instance's reference to its root DOM element if it changed
-            if new_dom_element != old_dom_element
+            if new_dom_element != old_dom_element && new_dom_element.is_a?(JS::Element)
               instance.dom_element = new_dom_element
             end
 
@@ -37,11 +39,13 @@ module Funicular
             instance.vdom = new_vdom
 
             # Re-collect refs using the new DOM element
-            instance.collect_refs(new_dom_element, new_vdom)
+            if new_dom_element.is_a?(JS::Element)
+              instance.collect_refs(new_dom_element, new_vdom)
 
-            # Re-bind events using the new DOM element
-            instance.cleanup_events
-            instance.bind_events(new_dom_element, new_vdom)
+              # Re-bind events using the new DOM element
+              instance.cleanup_events
+              instance.bind_events(new_dom_element, new_vdom)
+            end
 
             # Call component_updated on the child instance
             instance.component_updated if instance.respond_to?(:component_updated)
@@ -67,7 +71,7 @@ module Funicular
                 case child_patch[0]
                 when :replace
                   new_child_element = create_element(child_patch[1])
-                  element.appendChild(new_child_element)
+                  element.appendChild(new_child_element) if element.is_a?(JS::Element)
                 when :remove
                   # Nothing to remove if child doesn't exist
                 when Integer
@@ -75,7 +79,9 @@ module Funicular
                   # But if it does, recursively process it
                 end
               end
-            else
+            elsif child_element.is_a?(JS::Object)
+              # Recurse into the child node. apply handles both Element and
+              # text Node cases (the latter only meaningfully via :replace).
               apply(child_element, child_patches)
             end
           end

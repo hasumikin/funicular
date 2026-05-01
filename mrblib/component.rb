@@ -508,7 +508,7 @@ module Funicular
       when Array
         value.map { |v| normalize_state_value(v) }
       when JS::Object
-        if value.type == :array
+        if value.typeof == :array
           value.to_a.map { |v| normalize_state_value(v) }
         else
           value
@@ -529,7 +529,10 @@ module Funicular
       cleanup_events
 
       unless patches.empty?
-        @dom_element = VDOM::Patcher.new.apply(@dom_element, patches)
+        new_dom_element = VDOM::Patcher.new.apply(@dom_element, patches)
+        # apply returns JS::Object (it must accept text-node patches), but
+        # the component's root is always an Element. Narrow to JS::Element.
+        @dom_element = new_dom_element if new_dom_element.is_a?(JS::Element)
       end
 
       bind_events(@dom_element, new_vdom)
