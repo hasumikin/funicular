@@ -5,6 +5,7 @@ Funicular provides multiple layers for data fetching: low-level HTTP client, hig
 ## Table of Contents
 
 - [HTTP Client](#http-client)
+  - [Response Cache](#response-cache)
 - [Object-REST Mapper (Model)](#object-rest-mapper-model)
 - [Suspense / Loading States](#suspense--loading-states)
 - [Best Practices](#best-practices)
@@ -80,6 +81,40 @@ Funicular::HTTP.post('/api/posts', post_data) do |response|
   # CSRF token automatically included
 end
 ```
+
+### Response Cache
+
+GET responses can be cached in IndexedDB to cut perceived latency on
+repeated requests. The cache is opt-in per call via the `cache:` keyword,
+which sets a TTL in seconds:
+
+```ruby
+# First call: network fetch + cache write.
+# Subsequent calls within 60s: served synchronously from IndexedDB.
+Funicular::HTTP.get('/api/posts', cache: 60) do |response|
+  # response.data, response.status, response.ok behave as usual
+end
+```
+
+Cache key is the full URL string (path + query). Only successful (2xx) GET
+responses are written. POST/PATCH/PUT/DELETE ignore `cache:` (a warning is
+printed if it is passed).
+
+The cache lazily initializes on first use, but you can call
+`Funicular::HTTP.cache_init!` once at boot to pay the open cost upfront.
+Falls back to in-memory storage transparently when IndexedDB is
+unavailable.
+
+```ruby
+Funicular::HTTP.cache_init!         # idempotent
+
+Funicular::HTTP.cache_purge('/api/posts')  # invalidate one entry
+Funicular::HTTP.cache_clear                # invalidate everything
+```
+
+Invalidation is explicit: non-GET requests do **not** auto-purge related
+GET cache entries. If your API changes data through POST/PATCH/DELETE,
+invalidate the affected URLs manually.
 
 ## Object-REST Mapper (Model)
 

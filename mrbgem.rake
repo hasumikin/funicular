@@ -5,6 +5,7 @@ MRuby::Gem::Specification.new('picoruby-funicular') do |spec|
 
   unless ENV['TEST_TASK']
     spec.add_dependency 'picoruby-wasm'
+    spec.add_dependency 'picoruby-indexeddb'
   end
   spec.add_dependency 'picoruby-json'
   spec.add_dependency 'mruby-object-ext', gemdir: "#{MRUBY_ROOT}/mrbgems/picoruby-mruby/lib/mruby/mrbgems/mruby-object-ext"
