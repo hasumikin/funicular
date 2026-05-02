@@ -8,7 +8,8 @@ module Funicular
       # can recurse into it; Element-only operations are narrowed inside.
       def apply: (JS::Object element, Array[patch_t] patches) -> JS::Object
 
-      private def update_props: (JS::Element element, Hash[Symbol, String?] props_patch) -> void
+      # Accepts JS::Object since callers narrow via is_a?(JS::Element) at runtime
+      private def update_props: (JS::Object element, Hash[Symbol, String?] props_patch) -> void
       private def create_element: (untyped vnode) -> JS::Object
       private def unmount_component: (VDOM::VNode vnode) -> void
     end
