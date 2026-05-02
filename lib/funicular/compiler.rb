@@ -67,12 +67,13 @@ module Funicular
 
     def gather_source_files
       models_files = Dir.glob(File.join(source_dir, "models", "**", "*.rb")).sort
+      stores_files = Dir.glob(File.join(source_dir, "stores", "**", "*.rb")).sort
       components_files = Dir.glob(File.join(source_dir, "components", "**", "*.rb")).sort
       initializer_files = Dir.glob(File.join(source_dir, "*_initializer.rb")).sort +
                           Dir.glob(File.join(source_dir, "initializer.rb")).sort
 
-      # Order: models -> components -> initializer
-      all_files = models_files + components_files + initializer_files
+      # Order: models -> stores -> components -> initializer
+      all_files = models_files + stores_files + components_files + initializer_files
 
       if all_files.empty?
         raise "No Ruby files found in #{source_dir}"
