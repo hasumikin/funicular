@@ -72,6 +72,11 @@ cd picoruby/mrbgems/picoruby-funicular
 The CRubyGem side (`lib/`, `funicular.gemspec`, etc.) can be developed and tested independently inside that directory, but `rake copy_wasm` — which vendorsthe PicoRuby.wasm and picorbc wasm artifacts into the gem — relies on sibling directories within the picoruby repository (`mrbgems/picoruby-wasm/npm/`).
 Running it from a standalone checkout will fail.
 
+## Testing
+
+- CRubygem (Rails integration) test: `rake test` in this repository
+- PicoGem Funicular test: `rake test:gems:picoruby[picoruby-funicular]` in picoruby where mrbgems/picoruby-funicular exists as a submodule
+
 ## Contributing
 
 Bug reports and pull requests are welcome on GitHub at https://github.com/picoruby/funicular.

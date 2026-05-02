@@ -32,18 +32,18 @@ module Funicular
     class Renderer
       @error_boundary_stack: Array[Funicular::ErrorBoundary]
 
-      def initialize: (?JS::Object? doc) -> void
-      def render: (VDOM::VNode | VDOM::Text | nil vnode, ?JS::Object? parent) -> JS::Object
+      def initialize: (?JS::Element? doc) -> void
+      def render: (VDOM::VNode | VDOM::Text | nil vnode, ?JS::Element? parent) -> JS::Element
 
       private def current_error_boundary: () -> ErrorBoundary?
-      private def render_element: (Element element, JS::Object? parent) -> JS::Object
-      private def render_text: (VDOM::Text text, JS::Object? parent) -> JS::Object
-      private def render_component: (VDOM::Component component_vnode, JS::Object? parent) -> JS::Object
+      private def render_element: (Element element, JS::Element? parent) -> JS::Element
+      private def render_text: (VDOM::Text text, JS::Element? parent) -> JS::Element
+      private def render_component: (VDOM::Component component_vnode, JS::Element? parent) -> JS::Element
     end
 
     def self.create_element: (String tag, ?Hash[Symbol, untyped] props, *child_t children) -> Element
     def self.create_text: (String content) -> Text
-    def self.render: (VNode vnode, JS::Object container) -> void
+    def self.render: (VNode vnode, JS::Element container) -> void
     def self.diff: (VNode? old_vnode, VNode? new_vnode) -> Array[patch_t]
     def self.patch: (JS::Object element, Array[patch_t] patches) -> JS::Object
 

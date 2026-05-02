@@ -90,9 +90,22 @@ module Funicular
         end
       end
 
+      # Produce a single composite patch describing a keyed-children diff.
+      #
+      # The earlier implementation emitted independent `[index, ...]` patches
+      # for inserts, removes and updates. The patcher consumed them as
+      # `replaceChild`, which is unsafe whenever insert and remove indices
+      # overlap (e.g. switching between two equal-length sets of keyed
+      # children with disjoint keys): inserts overwrite old nodes in place,
+      # then the descending removes drop the just-inserted new nodes and
+      # the DOM ends up empty.
+      #
+      # The new shape is `[[:keyed_children, ops, removes]]`, applied as
+      # three phases by the patcher:
+      #   1. removes (descending old_index, against the original DOM snapshot)
+      #   2. content updates for kept children (against the snapshot, no move)
+      #   3. inserts in ascending new_index using insertBefore on the live DOM
       def self.diff_children_with_keys(old_children, new_children)
-        patches = [] #: Array[patch_t]
-
         # 1. Build key map from old children
         old_key_map = {} #: Hash[untyped, [Integer, child_t]]
         old_children.each_with_index do |child, index|
@@ -101,63 +114,59 @@ module Funicular
           end
         end
 
-        # 2. Track matched old indices
         matched_old_indices = {} #: Hash[Integer, bool]
+        ops = [] #: Array[Array[untyped]]
+        has_change = false
 
-        # 3. Process new children
+        # 2. Process new children, recording one op per new position
         new_children.each_with_index do |new_child, new_index|
           if new_child.is_a?(VNode) && new_child.respond_to?(:key) && new_child.key
             key = new_child.key
-
             if old_key_map[key]
               old_index, old_child = old_key_map[key]
               matched_old_indices[old_index] = true
-
-              # Diff existing element
               child_patches = diff(old_child, new_child)
-              unless child_patches.empty?
-                patches << [new_index, child_patches]
-              end
+              ops << [:keep, old_index, new_index, child_patches]
+              has_change = true unless child_patches.empty?
             else
-              # Insert new element
-              patches << [new_index, [[:replace, new_child, nil]]] # old_node is nil for insertion
+              ops << [:insert, new_index, new_child]
+              has_change = true
             end
           else
-            # Fallback to index-based for elements without keys
-            # Even if old_child.nil?, diff will handle it (insertion)
+            # Unkeyed new child: positional fallback. Match it with the
+            # old child at the same index only when that old child is
+            # itself unkeyed (otherwise the keyed old child is matched
+            # separately via its key, and the unkeyed new is a fresh insert).
             old_child = old_children[new_index]
-            child_patches = diff(old_child, new_child)
-            unless child_patches.empty?
-              patches << [new_index, child_patches]
+            old_is_keyed = old_child.is_a?(VNode) && old_child.respond_to?(:key) && old_child.key
+            if old_child.nil? || old_is_keyed
+              ops << [:insert, new_index, new_child]
+              has_change = true
+            else
+              matched_old_indices[new_index] = true
+              child_patches = diff(old_child, new_child)
+              ops << [:keep, new_index, new_index, child_patches]
+              has_change = true unless child_patches.empty?
             end
           end
         end
 
-        # 4. Remove unmatched old elements
+        # 3. Collect unmatched keyed old children to remove. Unkeyed olds
+        #    that do not match any new positional slot are left untouched
+        #    (matches the prior behavior of diff_children_with_keys).
+        removes = [] #: Array[[Integer, child_t]]
         old_children.each_with_index do |old_child, old_index|
           next unless old_child.is_a?(VNode)
           next if matched_old_indices[old_index]
-
-          if old_child.respond_to?(:key) && old_child.key # Only remove keyed children
-            patches << [old_index, [[:remove, old_child]]]
+          if old_child.respond_to?(:key) && old_child.key
+            removes << [old_index, old_child]
+            has_change = true
           end
         end
 
-        # Sort patches: updates first, removes last (descending index)
-        patches.sort { |a, b|
-          a_is_remove = a[1].length == 1 && a[1][0][0] == :remove
-          b_is_remove = b[1].length == 1 && b[1][0][0] == :remove
+        return [] unless has_change
 
-          if a_is_remove && b_is_remove
-            b[0] <=> a[0] # Sort remove patches by descending index
-          elsif a_is_remove
-            1 # Remove patches come after non-remove patches
-          elsif b_is_remove
-            -1 # Non-remove patches come before remove patches
-          else
-            a[0] <=> b[0] # Sort non-remove patches by ascending index
-          end
-        }
+        [[:keyed_children, ops, removes]]
       end
 
       def self.diff_children_by_index(old_children, new_children)

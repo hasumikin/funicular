@@ -91,7 +91,7 @@ module Funicular
       container
     end
 
-    unless container_element
+    unless container_element.is_a?(JS::Element)
       raise "Container element not found: #{container}"
     end
 

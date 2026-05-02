@@ -150,13 +150,15 @@ app/funicular/
   models/              # UI models
     user.rb
     session.rb
+  stores/              # State management (IndexedDB, caches, etc.)
+    draft_store.rb
   components/          # UI components
     login_component.rb
     chat_component.rb
   initializer.rb       # Application initialization (optional)
 ```
 
-The `initializer.rb` file (or any file ending with `_initializer.rb`) is loaded last, after all models and components. Use it for application setup code like routing configuration.
+The `initializer.rb` file (or any file ending with `_initializer.rb`) is loaded last, after all models, stores, and components. Use it for application setup code like routing configuration.
 
 ### Compilation
 
@@ -229,11 +231,13 @@ end
 Funicular concatenates files in the following order:
 
 1. `app/funicular/models/**/*.rb` (alphabetically)
-2. `app/funicular/components/**/*.rb` (alphabetically)
-3. `app/funicular/initializer.rb` and `app/funicular/*_initializer.rb`
+2. `app/funicular/stores/**/*.rb` (alphabetically)
+3. `app/funicular/components/**/*.rb` (alphabetically)
+4. `app/funicular/initializer.rb` and `app/funicular/*_initializer.rb`
 
 This ensures that:
-- Model classes are defined before components that depend on them
+- Model classes are defined before stores and components that depend on them
+- Stores are defined before components that use them
 - Components are defined before initialization code that uses them
 
 ### Routing

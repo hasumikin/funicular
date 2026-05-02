@@ -495,42 +495,25 @@ module Funicular
 
     private
 
-    # Normalize state value by converting JS::Object to Ruby native types
+    # Normalize state value for storage. Primitives are already auto-
+    # converted to Ruby native values by picoruby-wasm, so only composite
+    # JS::Object values (array / plain object / function / symbol / bigint)
+    # and nested Ruby collections need handling here.
     def normalize_state_value(value)
-      if value.is_a?(Hash)
-        # Recursively normalize hash values
+      case value
+      when Hash
         normalized = {} #: Hash[untyped, untyped]
-        value.each do |k, v|
-          normalized[k] = normalize_state_value(v)
-        end
+        value.each { |k, v| normalized[k] = normalize_state_value(v) }
         normalized
-      elsif value.is_a?(Array)
-        # Recursively normalize array elements
+      when Array
         value.map { |v| normalize_state_value(v) }
-      elsif value.is_a?(JS::Object)
-        # Convert JS::Object to appropriate Ruby type
-        case value.type
-        when :string
-          value.to_s
-        when :number
-          # Check if it's an integer or float
-          num = value.to_f
-          num == num.to_i ? num.to_i : num
-        when :boolean
-          # JS::Object#== now supports direct comparison with Ruby true/false
-          value == true
-        when :null, :undefined
-          nil
-        when :array
+      when JS::Object
+        if value.typeof == :array
           value.to_a.map { |v| normalize_state_value(v) }
-        when :object
-          # For plain objects, keep as JS::Object or convert to hash if needed
-          value
         else
           value
         end
       else
-        # Return as-is for Ruby native types
         value
       end
     end
@@ -546,7 +529,10 @@ module Funicular
       cleanup_events
 
       unless patches.empty?
-        @dom_element = VDOM::Patcher.new.apply(@dom_element, patches)
+        new_dom_element = VDOM::Patcher.new.apply(@dom_element, patches)
+        # apply returns JS::Object (it must accept text-node patches), but
+        # the component's root is always an Element. Narrow to JS::Element.
+        @dom_element = new_dom_element if new_dom_element.is_a?(JS::Element)
       end
 
       bind_events(@dom_element, new_vdom)

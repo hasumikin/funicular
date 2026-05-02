@@ -12,9 +12,9 @@ module Funicular
 
     attr_accessor props: Hash[Symbol, untyped]
     attr_accessor vdom: VDOM::VNode | VDOM::Text | nil
-    attr_accessor dom_element: JS::Object
+    attr_accessor dom_element: JS::Element
     attr_accessor mounted: bool
-    attr_reader refs: Hash[Symbol, JS::Object]
+    attr_reader refs: Hash[Symbol, JS::Element]
     @event_listeners: Array[Integer]
     @child_components: Array[Component]
     @suspense_data: Hash[Symbol, untyped]
@@ -53,10 +53,10 @@ module Funicular
     def suspense: (fallback: ^() -> void, ?error: ^(untyped) -> void) { () -> void } -> void
 
     def patch: (Hash[Symbol, untyped] new_state) -> void
-    def mount: (JS::Object container) -> void
+    def mount: (JS::Element container) -> void
     def unmount: () -> void
     def render: () -> (VDOM::VNode | String | Integer | Float | Array[untyped] | nil)
-    def bind_events: (JS::Object dom_element, VDOM::VNode | VDOM::Text | nil vnode) -> void
+    def bind_events: (JS::Element dom_element, VDOM::VNode | VDOM::Text | nil vnode) -> void
     def build_vdom: () -> (VDOM::VNode | VDOM::Text | nil)
 
     # Lifecycle hooks (public, can be overridden in subclasses)
@@ -91,7 +91,7 @@ module Funicular
     private def re_render: () -> void
     private def normalize_vnode: (untyped value) -> (VDOM::Element | VDOM::Text | VDOM::Component | nil)
     private def add_data_component_attribute: (VDOM::VNode vnode) -> void
-    private def collect_refs: (JS::Object dom_element, VDOM::VNode | VDOM::Text | nil vnode, ?Hash[Symbol, JS::Object] refs_map) -> Hash[Symbol, JS::Object]
+    private def collect_refs: (JS::Element dom_element, VDOM::VNode | VDOM::Text | nil vnode, ?Hash[Symbol, JS::Element] refs_map) -> Hash[Symbol, JS::Element]
     private def cleanup_events: () -> void
     private def cleanup_suspense_timers: () -> void
     private def add_child: (untyped child) -> void

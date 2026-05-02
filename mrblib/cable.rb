@@ -233,7 +233,8 @@ module Funicular
         return if @pending_commands.empty?
         begin
           json = JSON.generate(@pending_commands)
-          JS.global[:localStorage]&.setItem(STORAGE_KEY, json)
+          storage = JS.global[:localStorage]
+          storage.setItem(STORAGE_KEY, json) if storage.is_a?(JS::Object)
         rescue => e
           puts "[Cable] Error saving to localStorage: #{e.message}"
         end
@@ -242,12 +243,10 @@ module Funicular
       # Load pending commands from localStorage
       def load_pending_from_storage
         begin
-          stored = JS.global[:localStorage]&.getItem(STORAGE_KEY)
-          if stored
-            JSON.parse(stored.to_s)
-          else
-            []
-          end
+          storage = JS.global[:localStorage]
+          return [] unless storage.is_a?(JS::Object)
+          stored = storage.getItem(STORAGE_KEY)
+          stored.is_a?(String) ? JSON.parse(stored) : []
         rescue => e
           puts "[Cable] Error loading from localStorage: #{e.message}"
           []
@@ -257,7 +256,8 @@ module Funicular
       # Clear pending commands from localStorage
       def clear_pending_storage
         begin
-          JS.global[:localStorage]&.removeItem(STORAGE_KEY)
+          storage = JS.global[:localStorage]
+          storage.removeItem(STORAGE_KEY) if storage.is_a?(JS::Object)
         rescue => e
           puts "[Cable] Error clearing localStorage: #{e.message}"
         end
