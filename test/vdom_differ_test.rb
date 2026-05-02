@@ -149,8 +149,8 @@ class VDOMDifferTest < Picotest::Test
       Funicular::VDOM::Element.new('li', {key: 'a', class: 'first'})
     ])
     patches = @differ.diff(old_element, new_element)
-    # No patches should be generated since the elements themselves haven't changed
-    # (just their positions, which will be handled by remove+insert)
+    # No content changes (just position swap) means no patches.
+    # Reorder-only is not considered a change in the current implementation.
     assert_equal([], patches)
   end
 
@@ -166,9 +166,23 @@ class VDOMDifferTest < Picotest::Test
     ])
     patches = @differ.diff(old_element, new_element)
     assert_equal(1, patches.length)
-    assert_equal(1, patches[0][0]) # Child index 1 (where 'c' should be inserted)
-    new_c = new_element.children[1]
-    assert_equal([[:replace, new_c, nil]], patches[0][1])
+    assert_equal(:keyed_children, patches[0][0])
+    ops = patches[0][1]
+    removes = patches[0][2]
+    # 'a' kept at index 0
+    assert_equal(:keep, ops[0][0])
+    assert_equal(0, ops[0][1]) # old_index
+    assert_equal(0, ops[0][2]) # new_index
+    # 'c' inserted at new_index 1
+    assert_equal(:insert, ops[1][0])
+    assert_equal(1, ops[1][1]) # new_index
+    assert_equal('c', ops[1][2].key)
+    # 'b' kept (old_index=1 -> new_index=2)
+    assert_equal(:keep, ops[2][0])
+    assert_equal(1, ops[2][1]) # old_index
+    assert_equal(2, ops[2][2]) # new_index
+    # No removes
+    assert_equal([], removes)
   end
 
   def test_diff_children_with_keys_element_removed
@@ -183,9 +197,21 @@ class VDOMDifferTest < Picotest::Test
     ])
     patches = @differ.diff(old_element, new_element)
     assert_equal(1, patches.length)
-    assert_equal(1, patches[0][0]) # Child index 1 (where 'b' was)
-    old_b = old_element.children[1]
-    assert_equal([[:remove, old_b]], patches[0][1])
+    assert_equal(:keyed_children, patches[0][0])
+    ops = patches[0][1]
+    removes = patches[0][2]
+    # 'a' kept at old_index=0 -> new_index=0
+    assert_equal(:keep, ops[0][0])
+    assert_equal(0, ops[0][1])
+    assert_equal(0, ops[0][2])
+    # 'c' kept at old_index=2 -> new_index=1
+    assert_equal(:keep, ops[1][0])
+    assert_equal(2, ops[1][1])
+    assert_equal(1, ops[1][2])
+    # 'b' (old_index=1) removed
+    assert_equal(1, removes.length)
+    assert_equal(1, removes[0][0]) # old_index
+    assert_equal('b', removes[0][1].key)
   end
 
   def test_diff_children_with_keys_element_props_changed
@@ -199,8 +225,16 @@ class VDOMDifferTest < Picotest::Test
     ])
     patches = @differ.diff(old_element, new_element)
     assert_equal(1, patches.length)
-    assert_equal(0, patches[0][0]) # Child index 0
-    assert_equal([[:props, {class: 'baz'}]], patches[0][1])
+    assert_equal(:keyed_children, patches[0][0])
+    ops = patches[0][1]
+    # 'a' kept with props change
+    assert_equal(:keep, ops[0][0])
+    assert_equal(0, ops[0][1]) # old_index
+    assert_equal(0, ops[0][2]) # new_index
+    assert_equal([[:props, {class: 'baz'}]], ops[0][3]) # child_patches
+    # 'b' kept with no change
+    assert_equal(:keep, ops[1][0])
+    assert_equal([], ops[1][3])
   end
 
   def test_diff_children_with_keys_mixed_with_without_keys
@@ -213,10 +247,17 @@ class VDOMDifferTest < Picotest::Test
       Funicular::VDOM::Element.new('p') # No key, different tag
     ])
     patches = @differ.diff(old_element, new_element)
-    # Should detect that child index 1 changed from span to p
+    # Should detect change in unkeyed child at index 1
     assert_equal(1, patches.length)
-    assert_equal(1, patches[0][0])
-    assert_equal([[:replace, new_element.children[1], old_element.children[1]]], patches[0][1])
+    assert_equal(:keyed_children, patches[0][0])
+    ops = patches[0][1]
+    # 'a' kept
+    assert_equal(:keep, ops[0][0])
+    # unkeyed span->p triggers replace inside keep
+    assert_equal(:keep, ops[1][0])
+    assert_equal(1, ops[1][1]) # old_index
+    assert_equal(1, ops[1][2]) # new_index
+    assert_equal([[:replace, new_element.children[1], old_element.children[1]]], ops[1][3])
   end
 
   # Component diff tests

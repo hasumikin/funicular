@@ -58,6 +58,64 @@ module Funicular
             old_vnode = patch[1]
             unmount_component(old_vnode)
             element.parentElement&.removeChild(element)
+          when :keyed_children
+            # Composite patch produced by Differ.diff_children_with_keys.
+            # Applied in three phases against `element`:
+            #   1. snapshot DOM children, then remove unmatched keyed old
+            #      children (descending old_index so the snapshot indices
+            #      remain valid as removes happen).
+            #   2. apply content updates to kept children in place. The
+            #      lookup is by snapshot[old_index], so updates are stable
+            #      regardless of subsequent insertions.
+            #   3. insert new children at their new_index using
+            #      insertBefore on the live DOM. Processed in ascending
+            #      new_index order so each insertion fixes its own
+            #      position before later inserts run.
+            ops = patch[1]
+            removes = patch[2]
+
+            child_nodes = element[:childNodes]
+            snapshot = child_nodes.is_a?(JS::Object) ? child_nodes.to_a : [] #: Array[untyped]
+
+            # Phase 1: removes (descending old_index)
+            sorted_removes = removes.sort { |a, b| b[0] <=> a[0] }
+            sorted_removes.each do |entry|
+              old_index = entry[0]
+              old_vnode = entry[1]
+              target = snapshot[old_index]
+              next if target.nil?
+              unmount_component(old_vnode)
+              parent_el = target.parentElement
+              parent_el.removeChild(target) if parent_el
+            end
+
+            # Phase 2: updates against the snapshot (no movement)
+            ops.each do |op|
+              next unless op[0] == :keep
+              old_index = op[1]
+              child_patches = op[3]
+              next if child_patches.empty?
+              target = snapshot[old_index]
+              next if target.nil?
+              apply(target, child_patches)
+            end
+
+            # Phase 3: inserts in ascending new_index order
+            ops.each do |op|
+              next unless op[0] == :insert
+              new_index = op[1]
+              new_vnode = op[2]
+              new_node = create_element(new_vnode)
+              next if new_node.nil?
+              live_nodes = element[:childNodes]
+              live_arr = live_nodes.is_a?(JS::Object) ? live_nodes.to_a : [] #: Array[untyped]
+              ref = live_arr[new_index]
+              if ref.nil?
+                element.appendChild(new_node) if element.is_a?(JS::Element)
+              else
+                element.insertBefore(new_node, ref) if element.is_a?(JS::Element)
+              end
+            end
           when Integer
             child_index = patch[0]
             child_patches = patch[1]
@@ -97,6 +155,8 @@ module Funicular
       end
 
       def update_props(element, props_patch)
+        return unless element.is_a?(JS::Element)
+
         props_patch.each do |key, value|
           key_str = key.to_s
 

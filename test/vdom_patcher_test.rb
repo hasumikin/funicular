@@ -2,6 +2,8 @@
 module JS
   class Object
   end
+  class Element < Object
+  end
 end
 
 class VDOMPatcherTest < Picotest::Test
@@ -74,6 +76,21 @@ class VDOMPatcherTest < Picotest::Test
       new_child
     end
 
+    def insertBefore(new_child, ref_child)
+      if ref_child.nil?
+        @children << new_child
+      else
+        index = @children.index(ref_child)
+        if index
+          @children.insert(index, new_child)
+        else
+          @children << new_child
+        end
+      end
+      new_child.parent_element = self if new_child.respond_to?(:parent_element=)
+      new_child
+    end
+
     def [](key)
       case key.to_s
       when 'tagName'
@@ -94,9 +111,11 @@ class VDOMPatcherTest < Picotest::Test
     end
 
     def is_a?(klass)
-      # Mock JS::Object check
-      if klass.to_s == 'JS::Object'
-        false # We're not actually a JS::Object
+      # Mock JS::Element check for patcher compatibility
+      if klass == JS::Element
+        true
+      elsif klass.to_s == 'JS::Object'
+        true
       else
         super
       end
