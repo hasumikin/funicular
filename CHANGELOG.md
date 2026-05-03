@@ -1,3 +1,27 @@
+## [Unreleased]
+
+### Added
+
+- **Funicular::Store DSL**: Declarative client-side stores backed by
+  IndexedDB. Subclass `Funicular::Store::Singleton` (one value per scope)
+  or `Funicular::Store::Collection` (ordered list per scope) and use
+  class-level DSL (`database`, `scope`, `limit`, `key`, `expires_in`,
+  `cleared_on`, `subscribes_to`) to wire up persistence, TTL, event-based
+  clearing, and ActionCable integration.
+- `Funicular::Store.dispatch(:event)` for coordinated store clearing
+  (e.g., logout wipes all stores registered with `cleared_on :logout`)
+- `subscribes_to` DSL for embedding Cable message handling directly in
+  store classes; scopes gain `subscribe!` / `unsubscribe!` / `subscribed?`
+- Lazy KVS initialization: stores open IndexedDB on first access, removing
+  the need for explicit `init!` calls in application initializers
+- `Funicular::Store::Scope#on_change` / `off_change` for reactive UI
+  updates when store data changes
+
+### Changed
+
+- `Funicular::Cable::Consumer` now automatically resubscribes all active
+  subscriptions after WebSocket reconnect (`resubscribe_all`)
+
 ## [0.1.0] - 2026-04-20
 
 ### Added

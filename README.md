@@ -57,7 +57,18 @@ The others are common resources.
 
 You may want to see Tic-Tac-Toe tutorial first: [https://picoruby.org/funicular](https://picoruby.org/funicular)
 
-Then, dig [docs/](docs/).
+Then, dig [docs/](docs/):
+
+- [Components and State](docs/components-and-state.md)
+- [Routing and Navigation](docs/routing-and-navigation.md)
+- [Data Fetching](docs/data-fetching.md)
+- [Forms](docs/forms.md)
+- [Styling](docs/styling.md)
+- [Realtime (ActionCable)](docs/realtime.md)
+- [Client-Side Stores](docs/stores.md) — IndexedDB-backed caching with DSL
+- [Advanced Features](docs/advanced-features.md)
+- [Rails Integration](docs/rails-integration.md)
+- [Architecture](docs/architecture.md)
 
 ## Development
 

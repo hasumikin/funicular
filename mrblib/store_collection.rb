@@ -60,11 +60,12 @@ module Funicular
 
         def replace(arr)
           new_arr = cap(arr.is_a?(Array) ? arr : [])
-          # Skip the write+fire if the cached snapshot already matches by
-          # tail. This is the same_tail? optimization formerly in
-          # MessageCacheStore, hoisted into the framework.
-          return new_arr if same_tail?(new_arr)
-          write(new_arr)
+          # Skip IndexedDB write if the cached snapshot already matches by
+          # tail. Always fire callback so subscribers know replace completed
+          # (e.g. to clear loading state).
+          unless same_tail?(new_arr)
+            write(new_arr)
+          end
           fire_change(new_arr)
           new_arr
         end
