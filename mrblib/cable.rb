@@ -38,12 +38,18 @@ module Funicular
         # puts "[Cable] WebSocket object created, setting up handlers"
 
         @websocket.onopen do |event|
+          was_reconnect = @reconnect_attempts > 0
           @connected = true
           @reconnect_attempts = 0
           # puts "[Cable] Connected to #{@url}"
           # Delay flush to ensure connection is stable
           JS.global.setTimeout(100) do
-            flush_pending_commands if @connected
+            next unless @connected
+            # On reconnect the server has forgotten our subscriptions; re-issue
+            # subscribe commands before flushing any pending perform/unsubscribe
+            # so the server knows about them when those messages arrive.
+            @subscriptions.resubscribe_all if was_reconnect
+            flush_pending_commands
           end
         end
 
@@ -315,6 +321,15 @@ module Funicular
         subscription = @subscriptions[identifier]
         return unless subscription
         subscription.notify_received(message)
+      end
+
+      # Re-issue subscribe for every active subscription. Used after a
+      # WebSocket reconnect, where the server has dropped its subscription
+      # state but the client-side Subscription objects are still valid.
+      def resubscribe_all
+        @subscriptions.each_value do |subscription|
+          subscription.subscribe
+        end
       end
     end
 

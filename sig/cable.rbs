@@ -41,6 +41,7 @@ module Funicular
       def notify_subscription_confirmed: (String identifier) -> void
       def notify_subscription_rejected: (String identifier) -> void
       def notify_message: (String identifier, untyped message) -> void
+      def resubscribe_all: () -> void
     end
 
     class Subscription

@@ -1,0 +1,19 @@
+module Funicular
+  class Store
+    class Singleton < Funicular::Store
+      def self.scope_class: () -> singleton(Funicular::Store::Singleton::Scope)
+
+      class Scope < Funicular::Store::Scope
+        def value: () -> untyped
+        def value=: (untyped v) -> untyped
+        def delete: () -> nil
+        def present?: () -> bool
+        def expired?: () -> bool
+
+        private def read: () -> untyped
+        private def write: (untyped v) -> Hash[String, untyped]
+        private def erase: () -> nil
+      end
+    end
+  end
+end

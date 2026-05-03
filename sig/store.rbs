@@ -1,0 +1,89 @@
+module Funicular
+  class Store
+    EVENT_REGISTRY: Hash[Symbol, Array[singleton(Funicular::Store)]]
+    KVS_POOL: Hash[Array[String], IndexedDB::KVS]
+
+    class SubscribesTo < Data
+      attr_reader channel_name: String
+      attr_reader params_proc: ^(Funicular::Store::Scope) -> Hash[Symbol, untyped]
+      attr_reader handler_block: Proc
+
+      def self.new: (String channel_name, ^(Funicular::Store::Scope) -> Hash[Symbol, untyped] params_proc, Proc handler_block) -> instance
+    end
+
+    class Subscription
+      attr_reader cable_sub: Funicular::Cable::Subscription
+
+      def initialize: (Funicular::Cable::Subscription cable_sub) -> void
+      def unsubscribe: () -> nil
+    end
+
+    class Scope
+      attr_reader store_class: singleton(Funicular::Store)
+      attr_reader scope_kwargs: Hash[Symbol, untyped]
+
+      @on_change: Hash[Integer, Proc]
+      @next_cb_id: Integer
+      @subscription: Funicular::Store::Subscription?
+
+      def initialize: (singleton(Funicular::Store) store_class, Hash[Symbol, untyped] scope_kwargs) -> void
+      def method_missing: (Symbol name, *untyped args) -> untyped
+      def respond_to_missing?: (Symbol name, ?bool include_private) -> bool
+      def on_change: () { (untyped) -> void } -> Integer
+      def off_change: (Integer id) -> nil
+      def subscribed?: () -> bool
+      def subscription: () -> Funicular::Store::Subscription?
+      def subscribe!: () -> Funicular::Store::Subscription
+      def unsubscribe!: () -> nil
+
+      private def storage_key: () -> String
+      private def kvs: () -> IndexedDB::KVS
+      private def now_seconds: () -> Integer
+      private def expired_record?: (untyped rec) -> bool
+      private def fire_change: (untyped snapshot) -> void
+    end
+
+    self.@__database: String?
+    self.@__kvs_store_name: String?
+    self.@__scope_keys: Array[Symbol]?
+    self.@__expires_in: Integer?
+    self.@__source: untyped
+    self.@__belongs_to: Symbol?
+    self.@__cable_url: String?
+    self.@__cable_binding: SubscribesTo?
+    self.@__cleared_handlers: Hash[Symbol, Proc?]?
+    self.@__scope_pool: Hash[Hash[Symbol, untyped], Funicular::Store::Scope]?
+    self.@__consumer: Funicular::Cable::Consumer?
+
+    def self.database: (String name) -> String
+    def self.kvs_store: (String name) -> String
+    def self.scope: (*Symbol keys) -> Array[Symbol]
+    def self.expires_in: (Integer seconds) -> Integer
+    def self.source: (untyped model_class) -> untyped
+    def self.belongs_to: (Symbol name) -> Symbol
+    def self.cable_url: (String url) -> String
+    def self.subscribes_to: (String channel_name, params: ^(Funicular::Store::Scope) -> Hash[Symbol, untyped]) { (untyped, Funicular::Store::Scope) -> void } -> SubscribesTo
+    def self.cleared_on: (*Symbol event_names) ?{ (untyped) -> void } -> void
+
+    def self.where: (**untyped scope_kwargs) -> Funicular::Store::Scope
+    def self.scope_class: () -> singleton(Funicular::Store::Scope)
+
+    def self.__database: () -> String?
+    def self.__kvs_store_name: () -> String?
+    def self.__scope_keys: () -> Array[Symbol]?
+    def self.__expires_in: () -> Integer?
+    def self.__source: () -> untyped
+    def self.__belongs_to: () -> Symbol?
+    def self.__cable_url: () -> String?
+    def self.__cable_binding: () -> SubscribesTo?
+    def self.__cleared_handlers: () -> Hash[Symbol, Proc?]?
+    def self.__kvs: () -> IndexedDB::KVS
+    def self.__consumer: () -> Funicular::Cable::Consumer
+    def self.__handle_dispatch: (Symbol event, untyped payload) -> void
+    def self.__clear_all!: () -> nil
+
+    private def self.validate_scope_kwargs!: (Hash[Symbol, untyped] scope_kwargs) -> void
+
+    def self.dispatch: (Symbol | String event, ?untyped payload) -> nil
+  end
+end

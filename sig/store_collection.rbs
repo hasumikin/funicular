@@ -1,0 +1,43 @@
+module Funicular
+  class Store
+    class Collection < Funicular::Store
+      DEFAULT_KEY_PROC: ^(untyped) -> untyped
+
+      self.@__limit: Integer?
+      self.@__order: Symbol?
+      self.@__key_proc: ^(untyped) -> untyped | nil
+
+      def self.limit: (Integer n) -> Integer
+      def self.order: (Symbol direction) -> Symbol
+      def self.key: (^(untyped) -> untyped proc) -> (^(untyped) -> untyped)
+      def self.scope_class: () -> singleton(Funicular::Store::Collection::Scope)
+
+      def self.__limit: () -> Integer?
+      def self.__order: () -> Symbol?
+      def self.__key_proc: () -> (^(untyped) -> untyped | nil)
+
+      class Scope < Funicular::Store::Scope
+        attr_reader store_class: singleton(Funicular::Store::Collection)
+        @store_class: singleton(Funicular::Store::Collection)
+
+        def all: () -> Array[untyped]
+        def replace: (untyped arr) -> Array[untyped]
+        def append: (untyped item) -> Array[untyped]
+        def remove: (untyped id) -> Array[untyped]
+        def last: () -> untyped
+        def last_id: () -> untyped
+        def size: () -> Integer
+        def clear: () -> nil
+        def expired?: () -> bool
+        def same_tail?: (untyped other) -> bool
+
+        private def key_proc: () -> ^(untyped) -> untyped
+        private def cap: (Array[untyped] arr) -> Array[untyped]
+        private def append_to: (Array[untyped] arr, untyped item) -> Array[untyped]
+        private def read: () -> untyped
+        private def write: (Array[untyped] items) -> Hash[String, untyped]
+        private def erase: () -> nil
+      end
+    end
+  end
+end
