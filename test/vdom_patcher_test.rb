@@ -16,7 +16,7 @@ class VDOMPatcherTest < Picotest::Test
     end
 
     def to_a
-      @elements
+      @elements.dup
     end
   end
 
@@ -55,6 +55,7 @@ class VDOMPatcherTest < Picotest::Test
     end
 
     def appendChild(child)
+      @children.delete(child)
       @children << child
       child.parent_element = self if child.respond_to?(:parent_element=)
       child
@@ -77,6 +78,9 @@ class VDOMPatcherTest < Picotest::Test
     end
 
     def insertBefore(new_child, ref_child)
+      return new_child if new_child == ref_child
+
+      @children.delete(new_child)
       if ref_child.nil?
         @children << new_child
       else
@@ -132,6 +136,10 @@ class VDOMPatcherTest < Picotest::Test
 
     def parentElement
       @parent_element
+    end
+
+    def is_a?(klass)
+      klass == JS::Object || super
     end
   end
 
@@ -377,6 +385,33 @@ class VDOMPatcherTest < Picotest::Test
     result = @patcher.apply(element, [])
 
     assert_equal(element, result)
+  end
+
+  def test_keyed_reorder_keeps_dom_and_vdom_indices_aligned
+    first_vdom = Funicular::VDOM::Element.new('ul', {}, [
+      Funicular::VDOM::Element.new('li', {key: 'a'}, ['A']),
+      Funicular::VDOM::Element.new('li', {key: 'b'}, ['B'])
+    ])
+    dom = Funicular::VDOM::Renderer.new(@doc).render(first_vdom)
+    a_node, b_node = dom.children
+
+    second_vdom = Funicular::VDOM::Element.new('ul', {}, [
+      Funicular::VDOM::Element.new('li', {key: 'b'}, ["B'"]),
+      Funicular::VDOM::Element.new('li', {key: 'a'}, ['A'])
+    ])
+    @patcher.apply(dom, Funicular::VDOM::Differ.diff(first_vdom, second_vdom))
+
+    assert_equal([b_node, a_node], dom.children)
+    assert_equal("B'", b_node.children[0].text_content)
+
+    third_vdom = Funicular::VDOM::Element.new('ul', {}, [
+      Funicular::VDOM::Element.new('li', {key: 'b'}, ["B''"]),
+      Funicular::VDOM::Element.new('li', {key: 'a'}, ['A'])
+    ])
+    @patcher.apply(dom, Funicular::VDOM::Differ.diff(second_vdom, third_vdom))
+
+    assert_equal("B''", b_node.children[0].text_content)
+    assert_equal('A', a_node.children[0].text_content)
   end
 
   def test_create_element_from_string

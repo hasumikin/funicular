@@ -65,13 +65,12 @@ module Funicular
             #   1. snapshot DOM children, then remove unmatched keyed old
             #      children (descending old_index so the snapshot indices
             #      remain valid as removes happen).
-            #   2. apply content updates to kept children in place. The
+            #   2. apply content updates to kept children. The
             #      lookup is by snapshot[old_index], so updates are stable
-            #      regardless of subsequent insertions.
-            #   3. insert new children at their new_index using
-            #      insertBefore on the live DOM. Processed in ascending
-            #      new_index order so each insertion fixes its own
-            #      position before later inserts run.
+            #      regardless of removals.
+            #   3. place kept and new children at their new_index using
+            #      insertBefore on the live DOM. Ops are already in ascending
+            #      new_index order, so each placement fixes the next position.
             ops = patch[1]
             removes = patch[2]
 
@@ -90,7 +89,7 @@ module Funicular
               parent_el.removeChild(target) if parent_el
             end
 
-            # Phase 2: updates against the snapshot (no movement)
+            # Phase 2: updates against the snapshot
             ops.each do |op|
               next unless op[0] == :keep
               old_index = op[1]
@@ -98,19 +97,23 @@ module Funicular
               next if child_patches.empty?
               target = snapshot[old_index]
               next if target.nil?
-              apply(target, child_patches)
+              snapshot[old_index] = apply(target, child_patches)
             end
 
-            # Phase 3: inserts in ascending new_index order
+            # Phase 3: moves and inserts in ascending new_index order
             ops.each do |op|
-              next unless op[0] == :insert
-              new_index = op[1]
-              new_vnode = op[2]
-              new_node = create_element(new_vnode)
+              if op[0] == :keep
+                new_node = snapshot[op[1]]
+                new_index = op[2]
+              elsif op[0] == :insert
+                new_index = op[1]
+                new_node = create_element(op[2])
+              end
               next if new_node.nil?
               live_nodes = element[:childNodes]
               live_arr = live_nodes.is_a?(JS::Object) ? live_nodes.to_a : [] #: Array[untyped]
               ref = live_arr[new_index]
+              next if ref == new_node
               if ref.nil?
                 element.appendChild(new_node) if element.is_a?(JS::Element)
               else

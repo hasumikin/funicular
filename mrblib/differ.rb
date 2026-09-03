@@ -103,8 +103,8 @@ module Funicular
       # The new shape is `[[:keyed_children, ops, removes]]`, applied as
       # three phases by the patcher:
       #   1. removes (descending old_index, against the original DOM snapshot)
-      #   2. content updates for kept children (against the snapshot, no move)
-      #   3. inserts in ascending new_index using insertBefore on the live DOM
+      #   2. content updates for kept children (against the snapshot)
+      #   3. kept-node moves and inserts in new-index order on the live DOM
       def self.diff_children_with_keys(old_children, new_children)
         # 1. Build key map from old children
         old_key_map = {} #: Hash[untyped, [Integer, child_t]]
@@ -127,7 +127,7 @@ module Funicular
               matched_old_indices[old_index] = true
               child_patches = diff(old_child, new_child)
               ops << [:keep, old_index, new_index, child_patches]
-              has_change = true unless child_patches.empty?
+              has_change = true if old_index != new_index || !child_patches.empty?
             else
               ops << [:insert, new_index, new_child]
               has_change = true
