@@ -37,6 +37,12 @@ class VDOMPatcherTest < Picotest::Test
 
   class MockElement
     attr_accessor :tag_name, :attributes, :children, :parent_element, :properties
+    # Number of times a child was taken out of this element's child list,
+    # whether by removeChild or by a move through appendChild/insertBefore/
+    # replaceChild. A real DOM detaches and re-attaches a node even when it
+    # is inserted before itself, so a keyed patch that does not move a node
+    # must not call insertBefore on it at all.
+    attr_reader :detach_count
 
     def initialize(tag)
       @tag_name = tag
@@ -44,6 +50,7 @@ class VDOMPatcherTest < Picotest::Test
       @children = []
       @parent_element = nil
       @properties = {}
+      @detach_count = 0
     end
 
     def setAttribute(key, value)
@@ -55,22 +62,24 @@ class VDOMPatcherTest < Picotest::Test
     end
 
     def appendChild(child)
-      @children.delete(child)
+      detach(child)
       @children << child
       child.parent_element = self if child.respond_to?(:parent_element=)
       child
     end
 
     def removeChild(child)
-      @children.delete(child)
+      detach(child)
       child.parent_element = nil if child.respond_to?(:parent_element=)
       child
     end
 
     def replaceChild(new_child, old_child)
+      detach(new_child)
       index = @children.index(old_child)
       if index
         @children[index] = new_child
+        @detach_count += 1
         new_child.parent_element = self if new_child.respond_to?(:parent_element=)
         old_child.parent_element = nil if old_child.respond_to?(:parent_element=)
       end
@@ -78,18 +87,16 @@ class VDOMPatcherTest < Picotest::Test
     end
 
     def insertBefore(new_child, ref_child)
-      return new_child if new_child == ref_child
-
-      @children.delete(new_child)
-      if ref_child.nil?
-        @children << new_child
+      # Mirror the DOM: insertBefore(node, node) is a detach + re-attach at
+      # the same position, not a no-op.
+      self_insert = !ref_child.nil? && new_child.equal?(ref_child)
+      own_index = @children.index(new_child) if self_insert
+      detach(new_child)
+      index = self_insert ? own_index : (ref_child.nil? ? nil : @children.index(ref_child))
+      if index
+        @children.insert(index, new_child)
       else
-        index = @children.index(ref_child)
-        if index
-          @children.insert(index, new_child)
-        else
-          @children << new_child
-        end
+        @children << new_child
       end
       new_child.parent_element = self if new_child.respond_to?(:parent_element=)
       new_child
@@ -123,6 +130,15 @@ class VDOMPatcherTest < Picotest::Test
       else
         super
       end
+    end
+
+    private
+
+    def detach(child)
+      index = @children.index { |c| c.equal?(child) }
+      return if index.nil?
+      @children.delete_at(index)
+      @detach_count += 1
     end
   end
 
@@ -403,6 +419,8 @@ class VDOMPatcherTest < Picotest::Test
 
     assert_equal([b_node, a_node], dom.children)
     assert_equal("B'", b_node.children[0].text_content)
+    # Only b moved; a must not have been detached and re-attached.
+    assert_equal(1, dom.detach_count)
 
     third_vdom = Funicular::VDOM::Element.new('ul', {}, [
       Funicular::VDOM::Element.new('li', {key: 'b'}, ["B''"]),
@@ -412,6 +430,65 @@ class VDOMPatcherTest < Picotest::Test
 
     assert_equal("B''", b_node.children[0].text_content)
     assert_equal('A', a_node.children[0].text_content)
+    # A content-only change must not touch the child list at all.
+    assert_equal(1, dom.detach_count)
+  end
+
+  def test_keyed_insert_and_remove_do_not_detach_kept_children
+    first_vdom = Funicular::VDOM::Element.new('ul', {}, [
+      Funicular::VDOM::Element.new('li', {key: 'a'}, ['A']),
+      Funicular::VDOM::Element.new('li', {key: 'b'}, ['B']),
+      Funicular::VDOM::Element.new('li', {key: 'c'}, ['C'])
+    ])
+    dom = Funicular::VDOM::Renderer.new(@doc).render(first_vdom)
+    a_node, b_node, c_node = dom.children
+
+    # Remove b, insert d at the front, keep a and c in place.
+    second_vdom = Funicular::VDOM::Element.new('ul', {}, [
+      Funicular::VDOM::Element.new('li', {key: 'd'}, ['D']),
+      Funicular::VDOM::Element.new('li', {key: 'a'}, ['A']),
+      Funicular::VDOM::Element.new('li', {key: 'c'}, ['C'])
+    ])
+    @patcher.apply(dom, Funicular::VDOM::Differ.diff(first_vdom, second_vdom))
+
+    assert_equal(3, dom.children.length)
+    assert_equal('D', dom.children[0].children[0].text_content)
+    assert(dom.children[1].equal?(a_node))
+    assert(dom.children[2].equal?(c_node))
+    assert_nil(b_node.parent_element)
+    # Exactly one detach: the removal of b.
+    assert_equal(1, dom.detach_count)
+  end
+
+  class MockComponentInstance
+    attr_accessor :dom_element, :vdom, :runtime
+
+    def initialize(dom_element)
+      @dom_element = dom_element
+      @runtime = nil
+    end
+
+    def collect_refs(_element, _vdom); end
+    def cleanup_events; end
+    def bind_events(_element, _vdom); end
+  end
+
+  def test_update_and_rebind_returns_replaced_root
+    parent = @doc.createElement('ul')
+    old_root = @doc.createElement('li')
+    parent.appendChild(old_root)
+    instance = MockComponentInstance.new(old_root)
+
+    old_vnode = Funicular::VDOM::Element.new('li', {}, [])
+    new_vnode = Funicular::VDOM::Element.new('form', {}, [])
+    patches = [[:update_and_rebind, instance, [[:replace, new_vnode, old_vnode]], new_vnode]]
+
+    result = @patcher.apply(old_root, patches)
+
+    assert_equal('form', result.tag_name)
+    assert(result.equal?(instance.dom_element))
+    assert_equal([result], parent.children)
+    assert_nil(old_root.parent_element)
   end
 
   def test_create_element_from_string
