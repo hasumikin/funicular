@@ -31,9 +31,13 @@ module Funicular
             # Apply internal patches and get the potentially new root element
             new_dom_element = Patcher.new(@doc, instance.runtime).apply(old_dom_element, internal_patches)
 
-            # Update the instance's reference to its root DOM element if it changed
+            # Update the instance's reference to its root DOM element if it
+            # changed. The new root must also become this apply's return
+            # value; otherwise a caller that stores the result (for example
+            # the keyed_children snapshot) keeps pointing at a detached node.
             if new_dom_element != old_dom_element && new_dom_element.is_a?(JS::Element)
               instance.dom_element = new_dom_element
+              result = new_dom_element
             end
 
             # Update the instance's VDOM to the new one AFTER applying patches
@@ -65,18 +69,23 @@ module Funicular
             #   1. snapshot DOM children, then remove unmatched keyed old
             #      children (descending old_index so the snapshot indices
             #      remain valid as removes happen).
-            #   2. apply content updates to kept children in place. The
+            #   2. apply content updates to kept children. The
             #      lookup is by snapshot[old_index], so updates are stable
-            #      regardless of subsequent insertions.
-            #   3. insert new children at their new_index using
-            #      insertBefore on the live DOM. Processed in ascending
-            #      new_index order so each insertion fixes its own
-            #      position before later inserts run.
+            #      regardless of removals.
+            #   3. place kept and new children at their new_index using
+            #      insertBefore on the live DOM. Ops are already in ascending
+            #      new_index order, so each placement fixes the next position.
+            #
+            # Phase 3 tracks the live child order in a Ruby array instead of
+            # re-reading childNodes per op. Every childNodes.to_a allocates a
+            # fresh JS::Object wrapper per node, so wrappers of the same DOM
+            # node never compare equal and the read itself is O(n) across the
+            # wasm boundary. Identity is therefore decided with equal? on the
+            # snapshot objects, which is both exact and free.
             ops = patch[1]
             removes = patch[2]
 
-            child_nodes = element[:childNodes]
-            snapshot = child_nodes.is_a?(JS::Object) ? child_nodes.to_a : [] #: Array[untyped]
+            snapshot = child_nodes_array(element)
 
             # Phase 1: removes (descending old_index)
             sorted_removes = removes.sort { |a, b| b[0] <=> a[0] }
@@ -88,9 +97,10 @@ module Funicular
               unmount_component(old_vnode)
               parent_el = target.parentElement
               parent_el.removeChild(target) if parent_el
+              snapshot[old_index] = nil
             end
 
-            # Phase 2: updates against the snapshot (no movement)
+            # Phase 2: updates against the snapshot
             ops.each do |op|
               next unless op[0] == :keep
               old_index = op[1]
@@ -98,31 +108,45 @@ module Funicular
               next if child_patches.empty?
               target = snapshot[old_index]
               next if target.nil?
-              apply(target, child_patches)
+              snapshot[old_index] = apply(target, child_patches)
             end
 
-            # Phase 3: inserts in ascending new_index order
+            # Phase 3: moves and inserts in ascending new_index order.
+            # `live` mirrors the DOM child order after phases 1 and 2 and is
+            # updated alongside every DOM mutation, so a node already sitting
+            # at new_index is left untouched (no detach/re-attach).
+            live = snapshot.compact #: Array[untyped]
             ops.each do |op|
-              next unless op[0] == :insert
-              new_index = op[1]
-              new_vnode = op[2]
-              new_node = create_element(new_vnode)
-              next if new_node.nil?
-              live_nodes = element[:childNodes]
-              live_arr = live_nodes.is_a?(JS::Object) ? live_nodes.to_a : [] #: Array[untyped]
-              ref = live_arr[new_index]
-              if ref.nil?
-                element.appendChild(new_node) if element.is_a?(JS::Element)
+              case op[0]
+              when :keep
+                new_node = snapshot[op[1]]
+                new_index = op[2]
+              when :insert
+                new_index = op[1]
+                new_node = create_element(op[2])
               else
-                element.insertBefore(new_node, ref) if element.is_a?(JS::Element)
+                next
+              end
+              next if new_node.nil?
+              current = live[new_index]
+              next if current.equal?(new_node)
+              live.delete_if { |n| n.equal?(new_node) }
+              if new_index < live.length
+                live.insert(new_index, new_node)
+              else
+                live << new_node
+              end
+              next unless element.is_a?(JS::Element)
+              if current.nil?
+                element.appendChild(new_node)
+              else
+                element.insertBefore(new_node, current)
               end
             end
           when Integer
             child_index = patch[0]
             child_patches = patch[1]
-            # Use childNodes instead of children to include text nodes
-            child_nodes = element[:childNodes]
-            children = child_nodes.is_a?(JS::Object) ? child_nodes.to_a : [] #: Array[JS::Object]
+            children = child_nodes_array(element)
             child_element = children[child_index]
             if child_element.nil?
               # No existing child at this index - we need to create new elements
@@ -149,6 +173,14 @@ module Funicular
       end
 
       private
+
+      # childNodes (not children) so that text nodes are included. Each call
+      # crosses the wasm boundary once per child, so callers should read it
+      # once and work on the returned array.
+      def child_nodes_array(element)
+        child_nodes = element[:childNodes]
+        child_nodes.is_a?(JS::Object) ? child_nodes.to_a : [] #: Array[untyped]
+      end
 
       def unmount_component(vnode)
         return unless vnode.is_a?(VDOM::Component) && vnode.instance

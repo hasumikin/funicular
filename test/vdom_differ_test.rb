@@ -149,9 +149,12 @@ class VDOMDifferTest < Picotest::Test
       Funicular::VDOM::Element.new('li', {key: 'a', class: 'first'})
     ])
     patches = @differ.diff(old_element, new_element)
-    # No content changes (just position swap) means no patches.
-    # Reorder-only is not considered a change in the current implementation.
-    assert_equal([], patches)
+    assert_equal(1, patches.length)
+    assert_equal(:keyed_children, patches[0][0])
+    ops = patches[0][1]
+    assert_equal([:keep, 1, 0, []], ops[0])
+    assert_equal([:keep, 0, 1, []], ops[1])
+    assert_equal([], patches[0][2])
   end
 
   def test_diff_children_with_keys_element_added
