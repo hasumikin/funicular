@@ -491,6 +491,24 @@ class VDOMPatcherTest < Picotest::Test
     assert_nil(old_root.parent_element)
   end
 
+  def test_keyed_children_remove_text_placeholder
+    first_vdom = Funicular::VDOM::Element.new('ul', {}, ['Loading...'])
+    dom = Funicular::VDOM::Renderer.new(@doc).render(first_vdom)
+    placeholder = dom.children[0]
+    assert(placeholder.is_a?(MockTextNode))
+
+    second_vdom = Funicular::VDOM::Element.new('ul', {}, [
+      Funicular::VDOM::Element.new('li', {key: 'a'}, ['A']),
+      Funicular::VDOM::Element.new('li', {key: 'b'}, ['B'])
+    ])
+    @patcher.apply(dom, Funicular::VDOM::Differ.diff(first_vdom, second_vdom))
+
+    assert_equal(2, dom.children.length)
+    assert_equal('A', dom.children[0].children[0].text_content)
+    assert_equal('B', dom.children[1].children[0].text_content)
+    assert_nil(placeholder.parent_element)
+  end
+
   def test_create_element_from_string
     element = @patcher.send(:create_element, 'hello')
 
