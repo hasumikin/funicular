@@ -245,6 +245,43 @@ class VDOMDifferTest < Picotest::Test
     assert_nil(removes[0][1].key)
   end
 
+  def test_diff_children_with_keys_removes_unmatched_string_old
+    # A raw String child is a text node in the DOM. When the keyed list
+    # replaces it, it must be collected in removes like any other child;
+    # otherwise the text stays visible after the keyed children arrive.
+    old_element = Funicular::VDOM::Element.new('div', {}, ['Loading...'])
+    new_element = Funicular::VDOM::Element.new('div', {}, [
+      Funicular::VDOM::Element.new('li', {key: 'a'}),
+      Funicular::VDOM::Element.new('li', {key: 'b'})
+    ])
+    patches = @differ.diff(old_element, new_element)
+    assert_equal(1, patches.length)
+    assert_equal(:keyed_children, patches[0][0])
+    ops = patches[0][1]
+    removes = patches[0][2]
+    assert_equal(:insert, ops[0][0])
+    assert_equal(:insert, ops[1][0])
+    assert_equal([[0, 'Loading...']], removes)
+  end
+
+  def test_diff_children_with_keys_removes_trailing_string_old
+    # ['x', li a] -> [li a]: the keyed li is matched by key, the String at
+    # old_index 0 is unmatched and must be removed.
+    old_element = Funicular::VDOM::Element.new('div', {}, [
+      'x',
+      Funicular::VDOM::Element.new('li', {key: 'a'})
+    ])
+    new_element = Funicular::VDOM::Element.new('div', {}, [
+      Funicular::VDOM::Element.new('li', {key: 'a'})
+    ])
+    patches = @differ.diff(old_element, new_element)
+    assert_equal(1, patches.length)
+    ops = patches[0][1]
+    removes = patches[0][2]
+    assert_equal([[:keep, 1, 0, []]], ops)
+    assert_equal([[0, 'x']], removes)
+  end
+
   def test_diff_children_with_keys_element_props_changed
     old_element = Funicular::VDOM::Element.new('ul', {}, [
       Funicular::VDOM::Element.new('li', {key: 'a', class: 'foo'}),
