@@ -100,6 +100,11 @@ module Funicular
         @children = normalize_children(children || [])
       end
 
+      def ==(other)
+        return false unless other.is_a?(Element)
+        @tag == other.tag && @props == other.props && @children == other.children
+      end
+
       private
 
       def normalize_children(children)
@@ -123,11 +128,6 @@ module Funicular
           end
         end
         result
-      end
-
-      def ==(other)
-        return false unless other.is_a?(Element)
-        @tag == other.tag && @props == other.props && @children == other.children
       end
     end
 
