@@ -14,12 +14,12 @@ jobs:
     strategy:
       matrix:
         ruby:
-          - '4.0.5'
+          - '4.0.6'
 
     env:
       FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - name: Set up Ruby
         uses: ruby/setup-ruby@v1
         with:
